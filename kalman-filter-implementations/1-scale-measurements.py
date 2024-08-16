@@ -2,7 +2,11 @@
 #The weight of the object is treated as a random variable
 
 #Store weight data here
-weight_data = []
+init_state = 100 #g (what google said half a cup of flour is)
+init_state_error = 5 #g
+weight_data = [102, 101, 103, 101, 102, 101, 101, 101, 101, 101] #lbs
+process_noise_var = 0.0000001 #g^2
+measurement_var =  9 #g^2
 
 class ScaleKalmanFilter:
 ##### The 5 Kalman Filter Equations #####
@@ -17,13 +21,14 @@ class ScaleKalmanFilter:
         return predicted_x_hat
 
 #Covariance Extrapolation Equation
-    def covarianceExtrapolation(self, prev_state_var):
-        curr_state_var = prev_state_var #found through the state extrapolation equation
+    def covarianceExtrapolation(self, prev_state_var, process_noise_var):
+        curr_state_var = prev_state_var + process_noise_var #found through the state extrapolation equation, and then adding process noise
         return curr_state_var
 
 #Kalman Gain Equation
     def kalmanGain(self, state_var, measurement_var):
         k_gain = state_var / (state_var + measurement_var)
+        print(k_gain)
         return state_var
 
 #Covariance Update Equation
@@ -50,28 +55,29 @@ class ScaleKalmanFilter:
         return curr_state_estimate, curr_state_var
 
     #Predict Step
-    def Predict(self, curr_state_estimate, curr_state_var, curr_measurement, curr_measurement_var):
+    def Predict(self, curr_state_estimate, curr_state_var, curr_measurement, curr_measurement_var, process_noise_var):
         #if predicting during the initialization step, just return the current state estimate and current state variance
         if (curr_measurement == 0 and curr_measurement_var == 0):
             return curr_state_estimate, curr_state_var
         next_state_prediction = ScaleKalmanFilter.stateExtrapolation(curr_state_estimate, curr_measurement)
-        next_var_prediction = ScaleKalmanFilter.covarianceExtrapolation(curr_state_var, curr_measurement_var)
+        next_var_prediction = ScaleKalmanFilter.covarianceExtrapolation(curr_state_var, curr_measurement_var, process_noise_var)
         return next_state_prediction, next_var_prediction
     
 
 ##### Driver Function #####
 #define main()
-def main(init_state, init_state_error, scale_measurements, scale_measurement_var):
+def main(init_state, init_state_error, scale_measurements, scale_measurement_var, process_noise_var):
     measured_object = ScaleKalmanFilter()
-    curr_state_prediction = measured_object.Predict(init_state, init_state_error, 0, 0) #Step 0 Initialization
+    curr_state_prediction = measured_object.Predict(init_state, init_state_error, 0, 0, process_noise_var) #Step 0 Initialization
     for curr_measurement in scale_measurements:
         curr_measurement_data = measured_object.Measure(curr_measurement, scale_measurement_var) #Step 1 Measure
         curr_state_estimate = measured_object.Update(curr_state_prediction[0], curr_state_prediction[1], 
                                                      curr_measurement_data[0], curr_measurement_data[1]) #Step 2 Update
         print(str(curr_state_estimate) + '\n') #Output: The current state estimate and current state estimate variance
         curr_state_prediction = measured_object.Predict(curr_state_estimate[0],curr_state_estimate[1],
-                                                        curr_measurement_data[0],curr_measurement_data[1]) #Step 3 Predict
+                                                        curr_measurement_data[0],curr_measurement_data[1], process_noise_var) #Step 3 Predict
 
-main(1, 1, [1,2,3,4,5,6], 0.01)
+#Run Driver to initiate Kalman Filter Program
+main(init_state, init_state_error, weight_data, process_noise_var, measurement_var)
 
 #Shoutout to KalmanFilter.net for teaching me a lot of the information used to create this KalmanFilter
